@@ -1,0 +1,56 @@
+name: Build ADB Easy Installer (Windows)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pc_installer/**"
+      - ".github/workflows/build-pc-installer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Download official Android Platform-Tools
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://dl.google.com/android/repository/platform-tools-latest-windows.zip" -OutFile "platform-tools.zip"
+          Expand-Archive -Path "platform-tools.zip" -DestinationPath "pc_installer" -Force
+          if (!(Test-Path "pc_installer/platform-tools/adb.exe")) { throw "adb.exe missing after extraction" }
+
+      - name: Install PyInstaller
+        run: python -m pip install --upgrade pyinstaller==6.22.3
+
+      - name: Build Windows EXE
+        shell: pwsh
+        run: |
+          Set-Location pc_installer
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name ADBEasyInstaller --add-data "platform-tools;platform-tools" adb_easy_installer.py
+          if (!(Test-Path "dist/ADBEasyInstaller.exe")) { throw "Build failed: EXE missing" }
+          Get-Item "dist/ADBEasyInstaller.exe" | Select-Object Name, Length
+
+      - name: Publish downloadable EXE
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: adb-easy-installer-v1
+          target_commitish: main
+          name: ADB Easy Installer v1
+          body: |
+            ADB Easy Installer for Windows.
+            Vietnamese GUI to detect Android devices, install APK files from PC, list user-installed apps, and uninstall selected apps with confirmation.
+            Bundles official Android SDK Platform-Tools. Enable USB debugging and authorize the PC on the phone first.
+          files: pc_installer/dist/ADBEasyInstaller.exe
+          fail_on_unmatched_files: true
+          overwrite_files: true

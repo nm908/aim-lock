@@ -36,7 +36,7 @@ jobs:
       - name: Build Debug APK
         run: gradle assembleDebug
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: TouchAssist-APK
@@ -44,10 +44,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish public GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Prepare phone-friendly APK filename
+        if: github.ref == 'refs/heads/main'
+        run: cp app/build/outputs/apk/debug/*.apk TouchAssist.apk
+
+      - name: Publish direct APK download for phones
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          name: Touch Assist ${{ github.ref_name }}
-          generate_release_notes: true
-          files: app/build/outputs/apk/debug/*.apk
+          tag_name: touchassist-latest
+          target_commitish: main
+          name: Touch Assist APK (Latest)
+          body: "Direct APK download for Android phones. Download TouchAssist.apk below."
+          files: TouchAssist.apk
+          fail_on_unmatched_files: true
